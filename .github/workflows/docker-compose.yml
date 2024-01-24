@@ -1,0 +1,38 @@
+name: Docker Compose Build & Deploy
+
+on:
+  push:
+    branches:
+      - main  # Adjust the branch as needed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Compose
+        run: |
+          sudo rm /usr/local/bin/docker-compose
+          curl -L https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+          chmod +x /usr/local/bin/docker-compose
+
+      - name: Build and push Docker images
+        run: |
+          docker-compose build
+          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+          docker-compose push
+
+      - name: SSH into the deployment server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DEPLOY_SERVER_HOST }}
+          username: ${{ secrets.DEPLOY_SERVER_USERNAME }}
+          password: ${{ secrets.DEPLOY_SERVER_PASSWORD }}
+          script: |
+            cd /path/to/your/project
+            docker-compose down
+            docker-compose pull
+            docker-compose up -d
